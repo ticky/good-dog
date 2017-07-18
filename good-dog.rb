@@ -55,6 +55,8 @@ Sequel.sqlite STAY_DATABASE_PATH do |db|
 
         title = "/#{stored_window[:ZTITLEREGULAREXPRESSION]}/" if stored_window[:ZTITLEREGULAREXPRESSION]
 
+        title = "Any window" if title == '/.*/'
+
         puts "     • #{title}, #{window_dimensions.join '×'} at #{window_position}"
       end
     end
