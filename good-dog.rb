@@ -70,7 +70,7 @@ Sequel.sqlite STAY_DATABASE_PATH do |db|
 
         title = "Any window" if title == '/.*/'
 
-        puts "     • #{title}, #{window_dimensions.join '×'} at #{window_position}"
+        puts "     • #{title}, #{window_dimensions.join '×'} at #{window_position} (\##{stored_window[:Z_PK]})"
       end
     end
   end
