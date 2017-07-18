@@ -49,10 +49,22 @@ Sequel.sqlite STAY_DATABASE_PATH do |db|
     puts " • “#{row[:ZNAME]}” (Workspace \##{row[:Z_PK]})"
 
     puts "   Displays (#{workspace_displays.count}):"
-    workspace_displays.each do |display|
+    parsed_displays = workspace_displays.map do |display|
       display_position, display_dimensions = parse_bounds display[:ZDISPLAYBOUNDS]
 
       puts "   • “#{display[:ZPRODUCTNAME]}”, #{display_dimensions.join '×'} at #{display_position} (Display \##{display[:Z_PK]})"
+
+      display_extents = [
+        display_position[0] + display_dimensions[0],
+        display_position[1] + display_dimensions[1],
+      ]
+
+      {
+        display: display,
+        parsed_position: display_position,
+        parsed_dimensions: display_dimensions,
+        parsed_extents: display_extents
+      }
     end
 
     puts "   Applications (#{workspace_applications.count}):"
@@ -65,12 +77,21 @@ Sequel.sqlite STAY_DATABASE_PATH do |db|
         window_position, window_dimensions = parse_bounds stored_window[:ZFRAMESTRING]
 
         title = "“#{window[:ZTITLE]}”"
-
         title = "/#{stored_window[:ZTITLEREGULAREXPRESSION]}/" if stored_window[:ZTITLEREGULAREXPRESSION]
-
         title = "Any window" if title == '/.*/'
 
-        puts "     • #{title}, #{window_dimensions.join '×'} at #{window_position} (\##{stored_window[:Z_PK]})"
+        display_info = nil
+
+        if parsed_displays.count > 1
+          parsed_displays.each do |display_data|
+            if window_position[0] >= display_data[:parsed_position][0] && window_position[1] >= display_data[:parsed_position][1] && window_position[0] < display_data[:parsed_extents][0] && window_position[1] < display_data[:parsed_extents][1]
+              display_info = ", shown on ”#{display_data[:display][:ZPRODUCTNAME]}” (Display \##{display_data[:display][:Z_PK]})"
+              break
+            end
+          end
+        end
+
+        puts "     • #{title}, #{window_dimensions.join '×'} at #{window_position} (\##{stored_window[:Z_PK]})#{display_info}"
       end
     end
   end
