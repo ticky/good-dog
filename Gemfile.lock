@@ -1,17 +1,22 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    ffi (1.9.18)
     json (2.1.0)
     sequel (4.48.0)
     sqlite3 (1.3.13)
+    sys-proctable (1.1.4-universal-darwin)
+      ffi
 
 PLATFORMS
   ruby
+  x86_64-darwin-16
 
 DEPENDENCIES
   json
   sequel
   sqlite3
+  sys-proctable
 
 BUNDLED WITH
    1.15.1

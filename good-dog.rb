@@ -1,13 +1,17 @@
 #!/usr/bin/env ruby
 
-require 'sequel'
 require 'json'
+require 'sequel'
+require 'sys/proctable'
+include Sys
 
-STAY_DATABASE_PATH = File.expand_path '~/Library/Application Support/Stay/Stored Windows.sqlite'
-
-unless File.exist? STAY_DATABASE_PATH
-  puts "Couldn't find a Stay database!"
-  exit 1
+def warn_if_running
+  ProcTable.ps do |proc|
+    if proc.name == 'Stay'
+      puts "WARNING: Stay is currently running (process #{proc.pid}). Changes to the database may not be kept!"
+      break
+    end
+  end
 end
 
 def parse_bounds(bounds)
@@ -20,6 +24,15 @@ def parse_bounds(bounds)
     )
   )
 end
+
+STAY_DATABASE_PATH = File.expand_path '~/Library/Application Support/Stay/Stored Windows.sqlite'
+
+unless File.exist? STAY_DATABASE_PATH
+  puts "Couldn't find a Stay database!"
+  exit 1
+end
+
+warn_if_running
 
 Sequel.sqlite STAY_DATABASE_PATH do |db|
   displays = db.from(:ZDISPLAY)
