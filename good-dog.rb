@@ -15,10 +15,6 @@ def list_windows
 
   warn_if_running
 
-  # TODO:
-  # Check for args, accept window ID and workspace ID
-  # Copy a config as proof of concept
-
   Sequel.sqlite STAY_DATABASE_PATH do |db|
     displays = db.from(:ZDISPLAY)
     workspaces = db.from(:ZWORKSPACE)
@@ -83,16 +79,41 @@ def list_windows
   end
 end
 
-opts = Slop.parse do |o|
-  o.on '--list', 'List configurations' do
+def copy_window(window:, configuration:)
+  # TODO:
+  # Check for args, accept window ID and workspace ID
+  # Copy a config as proof of concept
+
+  puts "Copy window #{window} to #{configuration}..."
+end
+
+opts = Slop.parse do |opts|
+  opts.separator ""
+  opts.separator "Listing options:"
+  opts.on '--list', 'List configurations' do
     list_windows
     exit
   end
 
-  o.on '--help', 'Show usage' do
-    puts o
+  opts.separator ""
+  opts.separator "Copy options:"
+  opts.bool '--copy', 'Copy a window configuration to a new workspace'
+
+  opts.integer '--window', '-w', 'Window ID to copy'
+  opts.integer '--to', '-2', 'Configuration ID to copy specified `--window` to'
+
+  opts.separator ""
+  opts.separator "Other options:"
+
+  opts.on '--help', 'Show usage' do
+    puts opts
     exit
   end
+end
+
+if opts[:copy] && !opts[:window].nil? && !opts[:to].nil?
+  copy_window(window: opts[:window], configuration: opts[:to])
+  exit
 end
 
 puts opts
