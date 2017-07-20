@@ -9,5 +9,5 @@ The primary goal of _Good Dog_ is to allow duplicating stored windows between wo
 ## Usage
 
 ```sh
-echo "TODO"
+./good-dog.rb --list
 ```
