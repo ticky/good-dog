@@ -4,6 +4,19 @@ require 'slop'
 require './lib/coordinates'
 require './lib/database'
 
+def which_of_these_displays(displays, is_this_window_on:)
+  window_position, window_dimensions = parse_coordinates is_this_window_on[:ZFRAMESTRING]
+
+  displays.find do |display|
+    display_position, display_dimensions = parse_coordinates display[:ZDISPLAYBOUNDS]
+
+    window_position[0] >= display_position[0] &&
+    window_position[1] >= display_position[1] &&
+    window_position[0] < (display_position[0] + display_dimensions[0]) &&
+    window_position[1] < (display_position[1] + display_dimensions[1])
+  end
+end
+
 def list_windows
   GoodDog::Database.with_database do |displays, workspaces, applications, stored_windows, windows|
     puts "#{workspaces.count} workspaces with #{applications.count} application profiles found"
@@ -14,22 +27,10 @@ def list_windows
       puts " • “#{row[:ZNAME]}” (Workspace \##{row[:Z_PK]})"
 
       puts "   Displays (#{workspace_displays.count}):"
-      parsed_displays = workspace_displays.map do |display|
+      workspace_displays.each do |display|
         display_position, display_dimensions = parse_coordinates display[:ZDISPLAYBOUNDS]
 
         puts "   • “#{display[:ZPRODUCTNAME]}”, #{display_dimensions.join '×'} at #{display_position} (Display \##{display[:Z_PK]})"
-
-        display_extents = [
-          display_position[0] + display_dimensions[0],
-          display_position[1] + display_dimensions[1],
-        ]
-
-        {
-          display: display,
-          parsed_position: display_position,
-          parsed_dimensions: display_dimensions,
-          parsed_extents: display_extents
-        }
       end
 
       puts "   Applications (#{workspace_applications.count}):"
@@ -47,12 +48,11 @@ def list_windows
 
           display_info = nil
 
-          if parsed_displays.count > 1
-            parsed_displays.each do |display_data|
-              if window_position[0] >= display_data[:parsed_position][0] && window_position[1] >= display_data[:parsed_position][1] && window_position[0] < display_data[:parsed_extents][0] && window_position[1] < display_data[:parsed_extents][1]
-                display_info = ", shown on ”#{display_data[:display][:ZPRODUCTNAME]}” (Display \##{display_data[:display][:Z_PK]})"
-                break
-              end
+          if workspace_displays.count > 1
+            target_display = which_of_these_displays workspace_displays, is_this_window_on: stored_window
+
+            if target_display
+              display_info = ", shown on ”#{target_display[:ZPRODUCTNAME]}” (Display \##{target_display[:Z_PK]})"
             end
           end
 
@@ -63,12 +63,73 @@ def list_windows
   end
 end
 
-def copy_window(window:, configuration:)
-  # TODO:
-  # Check for args, accept window ID and workspace ID
-  # Copy a config as proof of concept
+def copy_window(window:, workspace:)
+  puts "Copy window #{window} to #{workspace}..."
 
-  puts "Copy window #{window} to #{configuration}..."
+  GoodDog::Database.with_database write: true do |displays, workspaces, applications, stored_windows, windows|
+    # first look up the window and stored_window
+    source_window = windows.where(:Z_PK => window).first
+    source_stored_window = stored_windows.where(:Z_PK => window).first
+
+    # look up the application associated with that stored_window
+    source_application = applications.where(:Z_PK => source_stored_window[:ZAPPLICATION]).first
+
+    if source_application[:ZWORKSPACE] == workspace
+      puts "Attempted to copy window \##{window} to a workspace it already exists in (\##{workspace})! Aborting."
+      exit 1
+    end
+
+    # okay now let's grab the the target workspace
+    target_workspace = workspaces.where(:Z_PK => workspace).first
+
+    if target_workspace.nil?
+      puts "Attempted to copy window \##{window} to a workspace which doesn't exist (\##{workspace})! Aborting."
+      exit 1
+    end
+
+    # grab the source workspace so we can figure out which display this window is on
+    source_workspace_displays = displays.where(:ZWORKSPACE => source_application[:ZWORKSPACE])
+
+    # check the target workspace has an appropriate display to copy to
+    source_display = which_of_these_displays source_workspace_displays, is_this_window_on: source_stored_window
+
+    _, source_display_dimensions = parse_coordinates source_display[:ZDISPLAYBOUNDS]
+    target_workspace_displays = displays.where(:ZWORKSPACE => workspace).to_a.select do |display|
+      _, display_dimensions = parse_coordinates display[:ZDISPLAYBOUNDS]
+
+      display_dimensions == source_display_dimensions
+    end
+
+    unless target_workspace_displays.any?
+      puts "Attempted to copy window \##{window} to a workspace with no compatible displays. Aborting."
+      exit 1
+    end
+
+    # TODO: This ambiguity will suck on triple monitor setups, need some workaround
+
+    if target_workspace_displays.count > 1
+      puts "Multiple displays in workspace \##{workspace} match. Aborting."
+      exit 1
+    end
+
+    # let's find out if the application has an equivalent entry in the target workspace
+    target_workspace_application = applications.where(
+      :ZBUNDLEIDENTIFIER => source_application[:ZBUNDLEIDENTIFIER],
+      :ZWORKSPACE => workspace
+    ).first
+
+    if target_workspace_application.nil?
+      puts 'TODO: we need to create a new application entry for this workspace!'
+    end
+
+    puts source_window,
+         source_stored_window,
+         source_application,
+         source_display,
+         target_workspace,
+         target_workspace_displays,
+         target_workspace_application
+  end
 end
 
 opts = Slop.parse do |opts|
@@ -96,7 +157,7 @@ opts = Slop.parse do |opts|
 end
 
 if opts[:copy] && !opts[:window].nil? && !opts[:to].nil?
-  copy_window(window: opts[:window], configuration: opts[:to])
+  copy_window(window: opts[:window], workspace: opts[:to])
   exit
 end
 
