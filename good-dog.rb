@@ -1,27 +1,11 @@
 #!/usr/bin/env ruby
 
 require 'slop'
-require 'sequel'
 require './lib/coordinates'
-require './lib/running_check'
-
-STAY_DATABASE_PATH = File.expand_path '~/Library/Application Support/Stay/Stored Windows.sqlite'
+require './lib/database'
 
 def list_windows
-  unless File.exist? STAY_DATABASE_PATH
-    puts "Couldn't find a Stay database!"
-    exit 1
-  end
-
-  warn_if_running
-
-  Sequel.sqlite STAY_DATABASE_PATH do |db|
-    displays = db.from(:ZDISPLAY)
-    workspaces = db.from(:ZWORKSPACE)
-    applications = db.from(:ZAPPLICATION)
-    stored_windows = db.from(:ZSTOREDWINDOW)
-    windows = db.from(:ZWINDOW)
-
+  GoodDog::Database.with_database do |displays, workspaces, applications, stored_windows, windows|
     puts "#{workspaces.count} workspaces with #{applications.count} application profiles found"
 
     workspaces.order(:ZNAME).each do |row|
