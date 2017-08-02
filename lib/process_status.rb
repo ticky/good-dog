@@ -1,7 +1,7 @@
 module GoodDog
   class SubprocessError < StandardError; end
 
-  module PS
+  module ProcessStatus
     # Returns an array of hashes whose keys are the columns in the `ps` output.
     module_function def aux
       processes = `ps aux 2>&1`

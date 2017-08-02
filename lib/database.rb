@@ -1,5 +1,5 @@
 require 'sequel'
-require_relative 'ps'
+require_relative 'process_status'
 
 module GoodDog
   class DatabaseError < StandardError; end
@@ -12,7 +12,7 @@ module GoodDog
       end
 
       if write
-        if GoodDog::PS.command_running? 'Stay'
+        if GoodDog::ProcessStatus.command_running? 'Stay'
           $stderr.puts 'WARNING: Stay is currently running. Changes to the database may not be kept!'
         end
       end
