@@ -78,7 +78,7 @@ def copy_window(window:, display:)
     source_workspace_displays = displays.where(:ZWORKSPACE => source_application[:ZWORKSPACE])
 
     # check the target workspace has an appropriate display to copy to
-    source_display = which_of_these_displays source_workspace_displays, is_this_window_on: source_stored_window
+    source_display = which_of_these_displays(source_workspace_displays, is_this_window_on: source_stored_window)
     source_display_offset, source_display_dimensions = GoodDog::Coordinates.parse source_display[:ZDISPLAYBOUNDS]
 
     target_display = displays.where(:Z_PK => display).first
@@ -99,6 +99,21 @@ def copy_window(window:, display:)
       :ZBUNDLEIDENTIFIER => source_application[:ZBUNDLEIDENTIFIER],
       :ZWORKSPACE => target_display[:ZWORKSPACE]
     ).first
+
+    # check for windows which are similar or going to conflict
+    unless target_application.nil?
+      matching_application_windows = stored_windows.where(
+        :ZAPPLICATION => target_application[:Z_PK],
+        :ZTITLEREGULAREXPRESSION => source_stored_window[:ZTITLEREGULAREXPRESSION]
+      )
+
+      # TODO: check more attributes match - maybe in the ZWINDOW too?
+
+      if matching_application_windows.count > 0
+        puts "A window with the same match expression already exists in the new workspace. Aborting."
+        exit 1
+      end
+    end
 
     db.transaction do
 
@@ -122,7 +137,7 @@ def copy_window(window:, display:)
         column != :Z_PK
       end
 
-      # TODO: Adjust coordinates for display bounds
+      # TODO: Adjust coordinates for target display bounds
 
       new_stored_window[:ZAPPLICATION] = target_application[:Z_PK]
 
