@@ -9,5 +9,9 @@ The primary goal of _Good Dog_ is to allow duplicating stored windows between wo
 ## Usage
 
 ```sh
+# List all stored windows, grouped by workspace and display
 ./good-dog.rb --list
+
+# Copy configuration of Window #140 to Display #8
+./good-dog.rb --copy --window 140 --to 8
 ```
