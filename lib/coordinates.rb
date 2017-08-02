@@ -1,23 +1,27 @@
 require 'json'
 
-def parse_coordinates(bounds)
-  # pretty sure this is, like, Obj-C array syntax?
-  JSON.parse(
-    bounds.gsub(
-      /[\{\}]/,
-      '{' => '[',
-      '}' => ']'
-    )
-  )
-end
+module GoodDog
+  module Coordinates
+    module_function def parse(bounds)
+      # pretty sure this is, like, Obj-C array syntax?
+      JSON.parse(
+        bounds.gsub(
+          /[\{\}]/,
+          '{' => '[',
+          '}' => ']'
+        )
+      )
+    end
 
-def stringify_coordinates(array)
-  JSON.generate(array).gsub(
-    /,/,
-    ', '
-  ).gsub(
-    /[\[\]]/,
-    '[' => '{',
-    ']' => '}'
-  )
+    module_function def stringify(array)
+      JSON.generate(array).gsub(
+        /,/,
+        ', '
+      ).gsub(
+        /[\[\]]/,
+        '[' => '{',
+        ']' => '}'
+      )
+    end
+  end
 end

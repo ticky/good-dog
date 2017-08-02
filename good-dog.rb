@@ -5,10 +5,10 @@ require './lib/coordinates'
 require './lib/database'
 
 def which_of_these_displays(displays, is_this_window_on:)
-  window_position, window_dimensions = parse_coordinates is_this_window_on[:ZFRAMESTRING]
+  window_position, window_dimensions = GoodDog::Coordinates.parse is_this_window_on[:ZFRAMESTRING]
 
   displays.find do |display|
-    display_position, display_dimensions = parse_coordinates display[:ZDISPLAYBOUNDS]
+    display_position, display_dimensions = GoodDog::Coordinates.parse display[:ZDISPLAYBOUNDS]
 
     window_position[0] >= display_position[0] &&
     window_position[1] >= display_position[1] &&
@@ -28,7 +28,7 @@ def list_windows
 
       puts "   Displays (#{workspace_displays.count}):"
       workspace_displays.each do |display|
-        display_position, display_dimensions = parse_coordinates display[:ZDISPLAYBOUNDS]
+        display_position, display_dimensions = GoodDog::Coordinates.parse display[:ZDISPLAYBOUNDS]
 
         puts "   • “#{display[:ZPRODUCTNAME]}”, #{display_dimensions.join '×'} at #{display_position} (Display \##{display[:Z_PK]})"
       end
@@ -40,7 +40,7 @@ def list_windows
 
         application_stored_windows.each do |stored_window|
           window = windows.where(:ZSTOREDWINDOW => stored_window[:Z_PK]).first
-          window_position, window_dimensions = parse_coordinates stored_window[:ZFRAMESTRING]
+          window_position, window_dimensions = GoodDog::Coordinates.parse stored_window[:ZFRAMESTRING]
 
           title = "“#{window[:ZTITLE]}”"
           title = "/#{stored_window[:ZTITLEREGULAREXPRESSION]}/" if stored_window[:ZTITLEREGULAREXPRESSION]
@@ -93,9 +93,9 @@ def copy_window(window:, workspace:)
     # check the target workspace has an appropriate display to copy to
     source_display = which_of_these_displays source_workspace_displays, is_this_window_on: source_stored_window
 
-    _, source_display_dimensions = parse_coordinates source_display[:ZDISPLAYBOUNDS]
+    _, source_display_dimensions = GoodDog::Coordinates.parse source_display[:ZDISPLAYBOUNDS]
     target_workspace_displays = displays.where(:ZWORKSPACE => workspace).to_a.select do |display|
-      _, display_dimensions = parse_coordinates display[:ZDISPLAYBOUNDS]
+      _, display_dimensions = GoodDog::Coordinates.parse display[:ZDISPLAYBOUNDS]
 
       display_dimensions == source_display_dimensions
     end
