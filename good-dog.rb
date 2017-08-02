@@ -63,8 +63,8 @@ def list_windows
   end
 end
 
-def copy_window(window:, workspace:)
-  puts "Copy window #{window} to #{workspace}..."
+def copy_window(window:, display:)
+  puts "Attempting to copy window \##{window} to display \##{display}..."
 
   GoodDog::Database.with_database write: true do |displays, workspaces, applications, stored_windows, windows|
     # first look up the window and stored_window
@@ -74,61 +74,46 @@ def copy_window(window:, workspace:)
     # look up the application associated with that stored_window
     source_application = applications.where(:Z_PK => source_stored_window[:ZAPPLICATION]).first
 
-    if source_application[:ZWORKSPACE] == workspace
-      puts "Attempted to copy window \##{window} to a workspace it already exists in (\##{workspace})! Aborting."
-      exit 1
-    end
-
-    # okay now let's grab the the target workspace
-    target_workspace = workspaces.where(:Z_PK => workspace).first
-
-    if target_workspace.nil?
-      puts "Attempted to copy window \##{window} to a workspace which doesn't exist (\##{workspace})! Aborting."
-      exit 1
-    end
-
     # grab the source workspace so we can figure out which display this window is on
     source_workspace_displays = displays.where(:ZWORKSPACE => source_application[:ZWORKSPACE])
 
     # check the target workspace has an appropriate display to copy to
     source_display = which_of_these_displays source_workspace_displays, is_this_window_on: source_stored_window
+    source_display_offset, source_display_dimensions = GoodDog::Coordinates.parse source_display[:ZDISPLAYBOUNDS]
 
-    _, source_display_dimensions = GoodDog::Coordinates.parse source_display[:ZDISPLAYBOUNDS]
-    target_workspace_displays = displays.where(:ZWORKSPACE => workspace).to_a.select do |display|
-      _, display_dimensions = GoodDog::Coordinates.parse display[:ZDISPLAYBOUNDS]
+    target_display = displays.where(:Z_PK => display).first
+    target_display_offset, target_display_dimensions = GoodDog::Coordinates.parse target_display[:ZDISPLAYBOUNDS]
 
-      display_dimensions == source_display_dimensions
-    end
-
-    unless target_workspace_displays.any?
-      puts "Attempted to copy window \##{window} to a workspace with no compatible displays. Aborting."
+    if target_display_dimensions != source_display_dimensions
+      puts "Window \##{window} is on a #{source_display_dimensions.join '×'} display, it can't be copied to a #{target_display_dimensions.join '×'} display! Aborting."
       exit 1
     end
 
-    # TODO: This ambiguity will suck on triple monitor setups, need some workaround
-
-    if target_workspace_displays.count > 1
-      puts "Multiple displays in workspace \##{workspace} match. Aborting."
+    if target_display[:ZWORKSPACE] == source_application[:ZWORKSPACE]
+      puts "Window \##{window} is already on workspace #{target_display[:ZWORKSPACE]}! Aborting."
       exit 1
     end
 
     # let's find out if the application has an equivalent entry in the target workspace
-    target_workspace_application = applications.where(
+    target_application = applications.where(
       :ZBUNDLEIDENTIFIER => source_application[:ZBUNDLEIDENTIFIER],
-      :ZWORKSPACE => workspace
+      :ZWORKSPACE => target_display[:ZWORKSPACE]
     ).first
 
-    if target_workspace_application.nil?
-      puts 'TODO: we need to create a new application entry for this workspace!'
+    if target_application.nil?
+      puts 'TODO: Copy source_application to new workspace'
     end
+
+    puts 'TODO: Copy source_stored_window to new workspace'
+
+    puts 'TODO: Copy source_window to new workspace'
 
     puts source_window,
          source_stored_window,
          source_application,
          source_display,
-         target_workspace,
-         target_workspace_displays,
-         target_workspace_application
+         target_display,
+         target_application
   end
 end
 
@@ -142,10 +127,10 @@ opts = Slop.parse do |opts|
 
   opts.separator ""
   opts.separator "Copy options:"
-  opts.bool '--copy', 'Copy a window configuration to a new workspace'
+  opts.bool '--copy', 'Copy a window configuration to a new display'
 
   opts.integer '--window', '-w', 'Window ID to copy'
-  opts.integer '--to', '-2', 'Configuration ID to copy specified `--window` to'
+  opts.integer '--to', '-2', 'Display ID to copy specified `--window` to'
 
   opts.separator ""
   opts.separator "Other options:"
@@ -157,7 +142,7 @@ opts = Slop.parse do |opts|
 end
 
 if opts[:copy] && !opts[:window].nil? && !opts[:to].nil?
-  copy_window(window: opts[:window], workspace: opts[:to])
+  copy_window(window: opts[:window], display: opts[:to])
   exit
 end
 
