@@ -137,8 +137,20 @@ def copy_window(window:, display:)
         column != :Z_PK
       end
 
-      # TODO: Adjust coordinates for target display bounds
+      # adjust coordinates for target display bounds
+      display_offset = source_display_offset.zip(target_display_offset).map do |source_dimension, target_dimension|
+        target_dimension - source_dimension
+      end
 
+      frame_offset, frame_size = GoodDog::Coordinates.parse new_stored_window[:ZFRAMESTRING]
+
+      frame_offset = frame_offset.zip(display_offset).map do |frame_coord, display_coord|
+        frame_coord + display_coord
+      end
+
+      new_framestring = GoodDog::Coordinates.stringify [frame_offset, frame_size]
+
+      new_stored_window[:ZFRAMESTRING] = new_framestring
       new_stored_window[:ZAPPLICATION] = target_application[:Z_PK]
 
       target_stored_window = stored_windows.where(:Z_PK => stored_windows.insert(new_stored_window)).first
@@ -147,6 +159,7 @@ def copy_window(window:, display:)
         column != :Z_PK
       end
 
+      new_window[:ZFRAMESTRING] = new_framestring
       new_window[:ZSTOREDWINDOW] = target_stored_window[:Z_PK]
       new_window[:Z_PK] = target_stored_window[:Z_PK]
 
