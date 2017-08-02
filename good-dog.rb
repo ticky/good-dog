@@ -18,7 +18,7 @@ def which_of_these_displays(displays, is_this_window_on:)
 end
 
 def list_windows
-  GoodDog::Database.with_database do |displays, workspaces, applications, stored_windows, windows|
+  GoodDog::Database.with_database do |_, displays, workspaces, applications, stored_windows, windows|
     puts "#{workspaces.count} workspaces with #{applications.count} application profiles found"
 
     workspaces.order(:ZNAME).each do |row|
@@ -66,7 +66,7 @@ end
 def copy_window(window:, display:)
   puts "Attempting to copy window \##{window} to display \##{display}..."
 
-  GoodDog::Database.with_database write: true do |displays, workspaces, applications, stored_windows, windows|
+  GoodDog::Database.with_database write: true do |db, displays, workspaces, applications, stored_windows, windows, primary_keys|
     # first look up the window and stored_window
     source_window = windows.where(:Z_PK => window).first
     source_stored_window = stored_windows.where(:Z_PK => window).first
@@ -100,20 +100,61 @@ def copy_window(window:, display:)
       :ZWORKSPACE => target_display[:ZWORKSPACE]
     ).first
 
-    if target_application.nil?
-      puts 'TODO: Copy source_application to new workspace'
+    db.transaction do
+
+      if target_application.nil?
+        puts "Copying “#{source_application[:ZNAME]}” application profile to workspace..."
+        new_application = source_application.select do |column|
+          column != :Z_PK
+        end
+
+        new_application[:ZWORKSPACE] = target_display[:ZWORKSPACE]
+
+        target_application = applications.where(:Z_PK => applications.insert(new_application)).first
+
+        primary_keys.where(:Z_NAME => 'Application').update(:Z_MAX => target_application[:Z_PK])
+      else
+        puts "Using existing “#{source_application[:ZNAME]}” application profile in target workspace..."
+      end
+
+      puts 'Copying window configuration to target workspace...'
+      new_stored_window = source_stored_window.select do |column|
+        column != :Z_PK
+      end
+
+      # TODO: Adjust coordinates for display bounds
+
+      new_stored_window[:ZAPPLICATION] = target_application[:Z_PK]
+
+      target_stored_window = stored_windows.where(:Z_PK => stored_windows.insert(new_stored_window)).first
+
+      new_window = source_window.select do |column|
+        column != :Z_PK
+      end
+
+      new_window[:ZSTOREDWINDOW] = target_stored_window[:Z_PK]
+      new_window[:Z_PK] = target_stored_window[:Z_PK]
+
+      target_window = windows.where(:Z_PK => windows.insert(new_window)).first
+
+      primary_keys.where(:Z_NAME => 'StoredWindow').update(:Z_MAX => target_stored_window[:Z_PK])
+      primary_keys.where(:Z_NAME => 'Window').update(:Z_MAX => target_stored_window[:Z_PK])
+
+      puts 'Done! Good dog. 🐕'
+
+      puts source_window,
+           source_stored_window,
+           source_application,
+           source_display,
+           target_display,
+           target_application,
+           target_stored_window,
+           target_window
+
+      # ha ha ha let's abort this transaction just in case
+      raise Hell
+
     end
-
-    puts 'TODO: Copy source_stored_window to new workspace'
-
-    puts 'TODO: Copy source_window to new workspace'
-
-    puts source_window,
-         source_stored_window,
-         source_application,
-         source_display,
-         target_display,
-         target_application
   end
 end
 

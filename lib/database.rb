@@ -23,8 +23,9 @@ module GoodDog
         applications = db.from(:ZAPPLICATION)
         stored_windows = db.from(:ZSTOREDWINDOW)
         windows = db.from(:ZWINDOW)
+        primary_keys = db.from(:Z_PRIMARYKEY)
 
-        yield displays, workspaces, applications, stored_windows, windows
+        yield db, displays, workspaces, applications, stored_windows, windows, primary_keys
       end
     end
   end
